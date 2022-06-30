@@ -1,0 +1,189 @@
+# import tkinter as tk
+class gift:
+    #0 is exempt, 1 is first disc
+    filluparray = [0, 1]
+    
+    def __init__(self, tax, limit, exempt):
+        self.tax = tax
+        self.limit = limit
+        self.exempt = exempt
+        self.s1 = None
+        self.s2 = None
+        self.amount = None
+        self.years = None
+        self.fillup = None
+        self.carryover = None
+        self.taxpaid = None
+        self.gifted = None
+
+# functional
+    def get_tax(self):
+        return self.tax
+    def get_limit(self):
+        return self.limit
+    def get_exempt(self):
+        return self.exempt
+
+# extra
+    def set_tax(self, x):
+        # 0 = kind, 1 = kleinkind, 2 = overig
+        taxdict = {0 : "kid", 1 : "grandkid", 2 : "other"}
+        ratelist1 = [[0.1, 0.2], [0.18, 0.36], [0.3, 0.4]]
+        self.tax = ratelist1[x]
+        print("Beneficiary is " + taxdict[x])
+
+    def set_limit(self):
+        self.limit = 130424
+    
+    def set_exempt(self, x):
+        # 0 = standaard, 1 = eenmalig, 2 = jubelton, 3 = overig
+        exemptdict = {0 : "standard", 1 : "one-time", 2 : "house", 3 : "other"}
+        exemptlist = [5677, 27231, 106671, 2274]
+        self.exempt = exemptlist[x]
+        print("Selected exemption is " + exemptdict[x])
+        
+# Calculate discs
+    def taxdiscs(self, x):
+        #if amount is under 130424, set it to the amount
+        taxable = x - self.exempt
+        if taxable <= 130424:
+            self.s1 = taxable 
+            self.s2 = 0
+        #if amount is higher than 130424, set it to 130424
+        if taxable > 130424:
+            self.s1 = 130424
+            self.s2 = taxable - 130424
+        
+        print("Amount taxed in disc 1 is " + str(self.s1))
+        print("Amount taxed in disc 2 is " + str(self.s2))
+        
+#Calculate tax       
+    def taxamount(self):
+        t1 = self.s1 * self.tax[0]
+        t2 = self.s2 * self.tax[1]
+        # t = self.s1 * self.tax[0] + self.s2 * self.tax[1]
+        t = t1 + t2
+        print("Tax disc 1: " + str(t1))
+        print("Tax disc 2: " + str(t2))
+        print("Tax total: " + str(t))
+        
+        return t
+
+#Spread over years
+    def optimize(self, amount, years, fillup):
+#Inventarisation
+        self.years = years
+        self.fillup = fillup
+        self.carryover = self.amount = amount
+        possibleyears = 0
+        self.taxpaid = 0
+        self.gifted = 0 
+        annual = amount / self.years
+
+#If only the exemption is being used anually, you wont be paying taxes of course
+        if fillup == 0: 
+            print("years it takes: " + str(amount/self.exempt))
+            return amount / self.exempt
+
+#If the first disc is being used annually
+        else:
+            #if special exemption
+            if self.exempt == "house" or "one-time":
+                self.taxdiscs(amount)
+                self.taxpaid += min(self.limit, self.carryover) * self.tax[0]
+                self.gifted += min(self.limit, self.carryover) + self.exempt
+                self.carryover -= self.s1 + self.exempt
+                if self.carryover < 0:
+                    self.carryover = self.carryover * 0
+                possibleyears += 1
+                    
+                print("Gifted amount with high exempt: " + str(self.limit) + " + " + str(self.get_exempt()))
+
+                #after using the one-time-exemption, set it to the regular
+                self.set_exempt(0)
+
+                for i in range (years-1):
+                    if self.carryover > 0:
+                        self.taxpaid += min(self.limit, self.carryover) * self.tax[0]
+                        self.gifted += min(self.limit, self.carryover) + self.exempt
+                        self.carryover -= (self.s1+self.exempt)
+                        if self.carryover < 0:
+                            self.carryover = self.carryover * 0
+                        possibleyears += 1
+                
+                #Debug
+                print("After " + str(possibleyears) + " years gifting, " + str(amount-self.carryover) + " was gifted and " + str(self.taxpaid) + " is the amount of tax paid. The amount left over is: " + str(self.carryover))
+
+
+            #if no special exemption
+            else:
+                self.taxdiscs(amount)
+                
+
+                #Reduce carryover by gifted amount and calculate the tax and years of gifting
+                for i in range (years):
+                    if self.carryover > 0:
+                        self.taxpaid += min(self.limit, self.carryover) * self.tax[0]
+                        self.gifted += min(self.limit, self.carryover) + self.exempt
+                        self.carryover -= (self.s1+self.exempt)
+                        if self.carryover < 0:
+                            self.carryover = self.carryover * 0
+                        possibleyears += 1
+
+                    #if theres not enough money to gift the given amount of years
+                    else: return print("After " + str(possibleyears) + " years of gifting, the money ran out. " + str(self.taxpaid) + " is the amount of tax paid. The amount gifted is " + str(amount))
+
+                #if there is enough money to gift the given amount of years
+                print("After " + str(years) + " years gifting, " + str(amount-self.carryover) + " was gifted and " + str(self.taxpaid) + " is the amount of tax paid. The amount left over is: " + str(self.carryover))
+                
+
+                #Debug
+                # print("Total tax over " + str(self.years) + " years: " + str(t1*years))
+            
+
+
+# MAIN
+def main(amount, person, exemption):
+    if amount < 0:
+        return print("ERROR: Are you trying to gift debt?")
+    
+#initialize
+    inst = gift(0.1, 130424, 5677)
+
+#set rates & circumstances
+    inst.set_tax(person)
+    inst.set_limit()
+    inst.set_exempt(exemption)
+
+# Calculate tax amount
+    inst.taxdiscs(amount)
+    inst.taxamount()
+
+#Amount, persontype, exemptiontype
+# #kind
+# main(250000, 0, 0)
+
+# #kleinkind
+# main(250000, 1, 0)
+
+# #overig
+# main(250000, 2, 0)
+
+def optimal(amount, person, exemption, years, fillup):
+    newarray = []
+    inst = gift (0.1, 130424, 5677)
+    inst.set_tax(person)
+    inst.set_limit()
+    inst.set_exempt(exemption)
+    inst.years = years
+    inst.fillup = fillup
+    inst.optimize(amount, years, fillup)
+
+optimal(1000000, 1, 0, 20, 1)
+
+# # DEBUG
+
+
+
+
+
